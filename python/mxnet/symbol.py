@@ -262,6 +262,9 @@ class Symbol(SymbolBase):
             index = idx
         if not isinstance(index, int):
             raise TypeError('Symbol only support integer index to fetch i-th output')
+        if index >= (len(self.list_outputs())):
+            # Important, python determines the end by this exception
+            raise IndexError
         handle = SymbolHandle()
         check_call(_LIB.MXSymbolGetOutput(
             self.handle, mx_uint(index), ctypes.byref(handle)))
@@ -756,7 +759,9 @@ class Symbol(SymbolBase):
         """
         # pylint: disable=too-many-locals
         if type_dict is None:
-            type_dict = {k: mx_real_t for k in self.list_arguments()}
+            attrs = self.attr_dict()
+            type_dict = {k: mx_real_t for k in self.list_arguments()
+                         if k not in attrs or '__dtype__' not in attrs[k]}
         arg_shapes, _, aux_shapes = self.infer_shape(**kwargs)
         arg_types, _, aux_types = self.infer_type(**type_dict)
 
@@ -1188,7 +1193,7 @@ def hypot(left, right):
         raise TypeError('types (%s, %s) not supported' % (str(type(left)), str(type(right))))
 
 
-def zeros(shape, dtype=_numpy.float32):
+def zeros(shape, dtype=_numpy.float32, **kwargs):
     """Create a Tensor filled with zeros, similar to numpy.zeros
         See Also https://docs.scipy.org/doc/numpy/reference/generated/numpy.zeros.html.
 
@@ -1204,10 +1209,10 @@ def zeros(shape, dtype=_numpy.float32):
     out : Symbol
         The created Symbol
     """
-    return _internal._zeros(shape=shape, dtype=dtype)
+    return _internal._zeros(shape=shape, dtype=dtype, **kwargs)
 
 
-def ones(shape, dtype=_numpy.float32):
+def ones(shape, dtype=_numpy.float32, **kwargs):
     """Create a Tensor filled with ones, similar to numpy.ones
         See Also https://docs.scipy.org/doc/numpy/reference/generated/numpy.ones.html.
 
@@ -1223,7 +1228,7 @@ def ones(shape, dtype=_numpy.float32):
     out : Symbol
         The created Symbol
     """
-    return _internal._ones(shape=shape, dtype=dtype)
+    return _internal._ones(shape=shape, dtype=dtype, **kwargs)
 
 
 def arange(start, stop=None, step=1.0, repeat=1, name=None, dtype=_numpy.float32):

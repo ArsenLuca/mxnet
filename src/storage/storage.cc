@@ -9,7 +9,6 @@
 #include "./naive_storage_manager.h"
 #include "./pooled_storage_manager.h"
 #include "./cpu_device_storage.h"
-#include "./gpu_device_storage.h"
 #include "./pinned_memory_storage.h"
 #include "../common/cuda_utils.h"
 #include "../common/lazy_alloc_array.h"
@@ -33,13 +32,18 @@ class StorageImpl : public Storage {
     switch (ctx.dev_type) {
       case Context::kCPU: break;
       case Context::kGPU:
-      case Context::kCPUPinned:
+      case Context::kCPUPinned: {
+          int gpu_num = 0;
 #if MXNET_USE_CUDA
-        CUDA_CALL(cudaSetDevice(ctx.dev_id));
-#else  // MXNET_USE_CUDA
-        LOG(FATAL) << "Please compile with CUDA enabled";
+          CUDA_CALL(cudaGetDeviceCount(&gpu_num));
 #endif  // MXNET_USE_CUDA
-        break;
+          if (gpu_num > 0) {
+#if MXNET_USE_CUDA
+          CUDA_CALL(cudaSetDevice(ctx.dev_id));
+#endif  // MXNET_USE_CUDA
+          }
+          break;
+        }
       default:
         LOG(FATAL) << "Unimplemented device";
     }
@@ -67,7 +71,7 @@ Storage::Handle StorageImpl::Alloc(size_t size, Context ctx) {
 #if MXNET_USE_CUDA
             ptr = new storage::NaiveStorageManager<storage::PinnedMemoryStorage>();
 #else
-            LOG(FATAL) << "Compile with USE_CUDA=1 to enable GPU usage";
+            ptr = new storage::NaiveStorageManager<storage::CPUDeviceStorage>();
 #endif  // MXNET_USE_CUDA
             break;
           }

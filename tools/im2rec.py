@@ -83,7 +83,15 @@ def read_list(path_in):
             if not line:
                 break
             line = [i.strip() for i in line.strip().split('\t')]
-            item = [int(line[0])] + [line[-1]] + [float(i) for i in line[1:-1]]
+            line_len = len(line)
+            if line_len < 3:
+                print('lst should at least has three parts, but only has %s parts for %s' %(line_len, line))
+                continue
+            try:
+                item = [int(line[0])] + [line[-1]] + [float(i) for i in line[1:-1]]
+            except Exception, e:
+                print('Parsing lst met error for %s, detail: %s' %(line, e))
+                continue
             yield item
 
 def image_encode(args, i, item, q_out):
@@ -96,13 +104,14 @@ def image_encode(args, i, item, q_out):
 
     if args.pass_through:
         try:
-            with open(fullpath) as fin:
+            with open(fullpath, 'rb') as fin:
                 img = fin.read()
             s = mx.recordio.pack(header, img)
             q_out.put((i, s, item))
         except Exception, e:
             traceback.print_exc()
             print('pack_img error:', item[1], e)
+            q_out.put((i, None, item))
         return
 
     try:
@@ -110,9 +119,11 @@ def image_encode(args, i, item, q_out):
     except:
         traceback.print_exc()
         print('imread error trying to load file: %s ' % fullpath)
+        q_out.put((i, None, item))
         return
     if img is None:
         print('imread read blank (None) image for file: %s' % fullpath)
+        q_out.put((i, None, item))
         return
     if args.center_crop:
         if img.shape[0] > img.shape[1]:
@@ -134,6 +145,7 @@ def image_encode(args, i, item, q_out):
     except Exception, e:
         traceback.print_exc()
         print('pack_img error on file: %s' % fullpath, e)
+        q_out.put((i, None, item))
         return
 
 def read_worker(args, q_in, q_out):
@@ -164,7 +176,8 @@ def write_worker(q_out, fname, working_dir):
         while count in buf:
             s, item = buf[count]
             del buf[count]
-            record.write_idx(item[0], s)
+            if s is not None:
+                record.write_idx(item[0], s)
 
             if count % 1000 == 0:
                 cur_time = time.time()
@@ -185,7 +198,7 @@ def parse_args():
                         help='If this is set im2rec will create image list(s) by traversing root folder\
         and output to <prefix>.lst.\
         Otherwise im2rec will read <prefix>.lst and create a database at <prefix>.rec')
-    cgroup.add_argument('--exts', type=list, default=['.jpeg', '.jpg'],
+    cgroup.add_argument('--exts', nargs='+', default=['.jpeg', '.jpg'],
                         help='list of acceptable image extensions.')
     cgroup.add_argument('--chunks', type=int, default=1, help='number of chunks.')
     cgroup.add_argument('--train-ratio', type=float, default=1.0,

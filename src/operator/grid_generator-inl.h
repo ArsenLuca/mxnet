@@ -1,7 +1,7 @@
 /*!
  * Copyright (c) 2017 by Contributors
  * \file grid_generator-inl.h
- * \brief 
+ * \brief
  * The operator generate sampling grid
  * \author Xu Dong
 */
@@ -36,12 +36,12 @@ struct GridGeneratorParam : public dmlc::Parameter<GridGeneratorParam> {
     DMLC_DECLARE_FIELD(transform_type)
     .add_enum("affine", grid::kAffine)
     .add_enum("warp", grid::kWarp)
-    .describe("transformation type\n    "
-              "if transformation type is affine, data is affine matrix : (batch, 6)\n    "
-              "if transformation type is warp, data is optical flow : (batch, 2, h, w)");
+    .describe("The type of transformation. For `affine`, input data should be an affine matrix "
+              "of size (batch, 6). For `warp`, input data should be an optical flow of size "
+              "(batch, 2, h, w).");
     DMLC_DECLARE_FIELD(target_shape).set_default(TShape(shape, shape + 2))
-    .describe("if transformation type is affine, the operator need a target_shape : (H, W)\n    "
-              "if transofrmation type is warp, the operator will ignore target_shape");
+    .describe("Specifies the output shape (H, W). This is required if transformation type is "
+              "`affine`. If transformation type is `warp`, this parameter is ignored.");
   }
 };
 
@@ -60,8 +60,8 @@ class GridGeneratorOp : public Operator {
     using namespace mshadow;
     using namespace mshadow::expr;
     CHECK_EQ(req[grid::kOut], kWriteTo);
-    CHECK_EQ(in_data.size(), 1);
-    CHECK_EQ(out_data.size(), 2);
+    CHECK_EQ(in_data.size(), 1U);
+    CHECK_EQ(out_data.size(), 2U);
     Stream<xpu> *s = ctx.get_stream<xpu>();
     switch (param_.transform_type) {
       case grid::kAffine: {
@@ -119,8 +119,8 @@ class GridGeneratorOp : public Operator {
                         const std::vector<TBlob> &aux_args) {
     using namespace mshadow;
     using namespace mshadow::expr;
-    CHECK_EQ(in_data.size(), 1);
-    CHECK_EQ(out_data.size(), 2);
+    CHECK_EQ(in_data.size(), 1U);
+    CHECK_EQ(out_data.size(), 2U);
     Stream<xpu> *s = ctx.get_stream<xpu>();
     switch (param_.transform_type) {
       case grid::kAffine: {
@@ -189,29 +189,29 @@ class GridGeneratorProp : public OperatorProperty {
                   std::vector<TShape> *out_shape,
                   std::vector<TShape> *aux_shape) const override {
     using namespace mshadow;
-    CHECK_EQ(in_shape->size(), 1) << "Input:[data]";
+    CHECK_EQ(in_shape->size(), 1U) << "Input:[data]";
     const TShape &lshape = (*in_shape)[grid::kData];
     if (lshape.ndim() ==  0) return false;
     out_shape->clear();
     switch (param_.transform_type) {
       case grid::kAffine: {
-        CHECK_EQ(lshape.ndim(), 2) \
+        CHECK_EQ(lshape.ndim(), 2U) \
           << "if transform_type is affine, data is affine matrix"
           "affine matrix should be 2D in batch-num_hidden";
-        CHECK_EQ(lshape[1], 6) << "incorrect data shape[1], should be 6";
-        CHECK_GT(param_.target_shape[0], 0) \
+        CHECK_EQ(lshape[1], 6U) << "incorrect data shape[1], should be 6";
+        CHECK_GT(param_.target_shape[0], 0U) \
             << "incorrect target_shape: " << param_.target_shape[0];
-        CHECK_GT(param_.target_shape[1], 0) \
+        CHECK_GT(param_.target_shape[1], 0U) \
             << "incorrect target_shape: " << param_.target_shape[1];
         out_shape->push_back(Shape4(lshape[0], 2, param_.target_shape[0], param_.target_shape[1]));
         out_shape->push_back(Shape2(3, param_.target_shape[0] * param_.target_shape[1]));
         break;
       }
       case grid::kWarp: {
-        CHECK_EQ(lshape.ndim(), 4) \
+        CHECK_EQ(lshape.ndim(), 4U) \
           << "if transform_type is warp, data is optical flow"
              "optical flow should be 4D in batch-num_hidden-y-x";
-        CHECK_EQ(lshape[1], 2) << "incorrect data shape[1], should be 2";
+        CHECK_EQ(lshape[1], 2U) << "incorrect data shape[1], should be 2";
         out_shape->push_back(lshape);
         out_shape->push_back(Shape3(2, lshape[2], lshape[3]));
         break;

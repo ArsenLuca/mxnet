@@ -22,11 +22,10 @@ import ml.dmlc.mxnet.NDArrayConversions._
 
 /**
  * A very simple SGD optimizer with momentum and weight regularization.
- * @author Yizhi Liu
  */
-class SGD(private val learningRate: Float = 0.01f, private val momentum: Float = 0.0f,
-          private val wd: Float = 0.0001f, private val clipGradient: Float = 0f,
-          private val lrScheduler: LRScheduler = null) extends Optimizer {
+class SGD(val learningRate: Float = 0.01f, momentum: Float = 0.0f,
+          wd: Float = 0.0001f, clipGradient: Float = 0f,
+          lrScheduler: LRScheduler = null) extends Optimizer {
 
   if (lrScheduler != null) {
     lrScheduler.baseLR = learningRate
@@ -42,14 +41,15 @@ class SGD(private val learningRate: Float = 0.01f, private val momentum: Float =
    */
   override def update(index: Int, weight: NDArray, grad: NDArray, state: AnyRef): Unit = {
     // TODO(bing) implement wd_bias, wd_gamma, wd_beta (copy from python package)
-    val lr =
+    var lr =
       (if (lrScheduler != null) {
         val scheduledLr = lrScheduler(numUpdate)
         updateCount(index)
         scheduledLr
       } else {
         this.learningRate
-      }) * lrScale.getOrElse(index, 1f)
+      })
+    lr = getLr(index, lr)
 
     val wd = getWd(index, this.wd)
     var resdGrad = grad * this.rescaleGrad
@@ -98,6 +98,22 @@ class SGD(private val learningRate: Float = 0.01f, private val momentum: Float =
   override def disposeState(state: AnyRef): Unit = {
     if (state != null) {
       state.asInstanceOf[NDArray].dispose()
+    }
+  }
+
+  override def serializeState(state: AnyRef): Array[Byte] = {
+    if (state != null) {
+      state.asInstanceOf[NDArray].serialize()
+    } else {
+      null
+    }
+  }
+
+  override def deserializeState(bytes: Array[Byte]): AnyRef = {
+    if (bytes != null) {
+      NDArray.deserialize(bytes).asInstanceOf[AnyRef]
+    } else {
+      null
     }
   }
 }

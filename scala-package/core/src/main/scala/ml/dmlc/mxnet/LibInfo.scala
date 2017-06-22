@@ -23,9 +23,8 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 /**
  * JNI functions
- * @author Yizhi Liu
  */
-class LibInfo {
+private[mxnet] class LibInfo {
   @native def nativeLibInit(): Int
   @native def mxGetLastError(): String
   // Operators
@@ -187,6 +186,12 @@ class LibInfo {
                                          paramVals: Array[String],
                                          symHandleRef: SymbolHandleRef): Int
   @native def mxSymbolSetAttr(handle: SymbolHandle, key: String, value: String): Int
+  @native def mxSymbolListAttrShallow(handle: SymbolHandle,
+                                      outSize: MXUintRef,
+                                      out: ArrayBuffer[String]): Int
+  @native def mxSymbolListAttr(handle: SymbolHandle,
+                               outSize: MXUintRef,
+                               out: ArrayBuffer[String]): Int
   @native def mxSymbolCompose(handle: SymbolHandle,
                               name: String,
                               keys: Array[String],
@@ -294,4 +299,9 @@ class LibInfo {
 
   // CustomOp
   @native def mxCustomOpRegister(regName: String, opProp: CustomOpProp): Int
+
+  // Profiler
+  @native def mxSetProfilerConfig(mode: Int, fileName: String): Int
+  @native def mxSetProfilerState(state: Int): Int
+  @native def mxDumpProfile(): Int
 }
